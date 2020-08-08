@@ -8,8 +8,10 @@ ans_patterns = data_root + "patterns.txt"
 test_questions = data_root + "test_questions.txt"
 trec_corpus_xml = data_root + "trec_documents.xml"
 
-processed_corpus = data_root + "processed/corpus.pkl"
-processed_text_qs = data_root + "processed/test_qs.pkl"
+processed_root = data_root + "processed/"
+processed_corpus = processed_root + "corpus.pkl"
+processed_text_qs = processed_root + "test_qs.pkl"
+processed_tfids = processed_root + "tfids.pkl"
 
 question_extraction_pattern = "Number: (\d+) *\n\n\<desc\> Description\:\n(\w+.*)\n\n\<\/top>"
 
@@ -93,30 +95,44 @@ def compute_term_freqs():
 
 def compute_term_idfs(corpus, save=False):
     
-    term_doc_freq = {}
-    N = len(corpus.keys())
-
-    # first we get the document freq of a term 
-    # i.e. how many docs contain that term
-    # this is upper bounded by num of docs, of course
-    for doc in corpus.values():
-
-        # we are interested in just occurence, and not actual freqs
-        # that's why we convert the doc to set of non-repeating terms
-        terms = set(doc.split(" "))
+    try:
+        print("Loading from saved pickle")
+        term_doc_freq = pickle.load(open(processed_tfids, "rb"))
+        return term_doc_freq
+    
+    except Exception as e:
         
-        for term in terms:
+        term_doc_freq = {}
+        N = len(corpus.keys())
+
+        # first we get the document freq of a term 
+        # i.e. how many docs contain that term
+        # this is upper bounded by num of docs, of course
+        for doc in corpus.values():
+
+            # we are interested in just occurence, and not actual freqs
+            # that's why we convert the doc to set of non-repeating terms
+            terms = set(doc.split(" "))
             
-            if term in term_doc_freq.keys():
-                term_doc_freq[term] += 1
-            else:
-                term_doc_freq[term] = 1
+            for term in terms:
+                
+                if term in term_doc_freq.keys():
+                    term_doc_freq[term] += 1
+                else:
+                    term_doc_freq[term] = 1
 
-    # now that we have term's df, we inverse it and apply log normalization
-    for t in term_doc_freq.keys():
-        term_doc_freq[t] = math.log(N/term_doc_freq[t])
+        # now that we have term's df, we inverse it and apply log normalization
+        for t in term_doc_freq.keys():
+            term_doc_freq[t] = math.log(N/term_doc_freq[t])
 
-    return term_doc_freq
+        if save:
+                print("saving tfids, existing data will be overwritten")
+                pickle.dump(
+                    term_doc_freq, 
+                    open(processed_tfids, "wb" )
+                )
+
+        return term_doc_freq
 
 
 def precision_at_r(r):
@@ -132,7 +148,7 @@ if __name__ == "__main__":
 
     #print(c['ft911-5'])
 
-    tdfs = compute_term_idfs(c)
+    tdfs = compute_term_idfs(c, save=True)
 
     print(len(tdfs))
     print(tdfs['the'])
