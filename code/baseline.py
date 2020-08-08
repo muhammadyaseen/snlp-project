@@ -1,7 +1,11 @@
 import re
 import pickle
 import math
+
 from bs4 import BeautifulSoup
+from collections import Counter
+from collections import defaultdict
+
 
 data_root = "../data/"
 ans_patterns = data_root + "patterns.txt"
@@ -12,6 +16,7 @@ processed_root = data_root + "processed/"
 processed_corpus = processed_root + "corpus.pkl"
 processed_text_qs = processed_root + "test_qs.pkl"
 processed_tfids = processed_root + "tfids.pkl"
+processed_tfidf_repr = processed_root + "tfrepr.pkl"
 
 question_extraction_pattern = "Number: (\d+) *\n\n\<desc\> Description\:\n(\w+.*)\n\n\<\/top>"
 
@@ -51,6 +56,7 @@ def get_test_questions(test_questions, ans_patterns, save=False):
 
         return qs
 
+
 def process_trec_xml(trec_corpus_xml, save=False):
     
     try:
@@ -86,43 +92,54 @@ def process_trec_xml(trec_corpus_xml, save=False):
 
         return corpus
 
-def tf_repr(text):
-
-    tokens = text.split(" ")
-    terms = set(tokens)
-
-    d = {}
-
-    for t in tokens:
-        if t in d.keys():
-            d[t] += 1
-        else:
-            d[t] = 1
-
-    return d
-
 # create representation of all docs in terms of their term freqs
-def compute_term_freq_doc_repr(corpus):
+def compute_tfidf_doc_repr(corpus, term_idfs, save=False):
     
-    corpus_tf_repr = {}
-    
-    for doc_id in corpus.keys():
+    try:
+        print("Loading from saved pickle")
+        corpus_tfidf_repr = pickle.load(open(processed_tfidf_repr, "rb"))
+        
+        return corpus_tfidf_repr
 
-        pass
+    except Exception as e:
+
+        corpus_tfidf_repr = {}
+
+        for doc_id in corpus:
+
+            tf_repr = Counter(corpus[doc_id].split(" "))
+            doc_max = max(tf_repr.values())
+
+            for k, v in tf_repr.items():
+                # normalize by max freq
+                tf_repr[k] = tf_repr[k] / doc_max
+                # weight tf by idf
+                tf_repr[k] = tf_repr[k] * term_idfs[k]
+
+            corpus_tfidf_repr[doc_id] = tf_repr
+        
+        if save:
+                print("saving tfid repr, existing data will be overwritten")
+                pickle.dump(
+                    corpus_tfidf_repr, 
+                    open(processed_tfidf_repr, "wb" )
+                )
+        
+        return corpus_tfidf_repr
 
 # returns the idf weighted representation, given tf based repr as input
 def get_tfidfs_repr(v):
     pass
 
+
 def cosine_sim(q,d):
     
-    q = get_tfidfs_repr(q)
-    d = get_tfidfs_repr(d)
+    #q = get_tfidfs_repr(q)
+    #d = get_tfidfs_repr(d)
 
-    mag_q =
-    mag_d =
+    mag_q = 0
+    mag_d = 0
     
-
 
 def compute_term_idfs(corpus, save=False):
     
@@ -139,11 +156,11 @@ def compute_term_idfs(corpus, save=False):
         # first we get the document freq of a term 
         # i.e. how many docs contain that term
         # this is upper bounded by num of docs, of course
-        for doc in corpus.values():
+        for doc in corpus:
 
             # we are interested in just occurence, and not actual freqs
             # that's why we convert the doc to set of non-repeating terms
-            terms = set(doc.split(" "))
+            terms = set(corpus[doc].split(" "))
             
             for term in terms:
                 
@@ -169,20 +186,21 @@ def compute_term_idfs(corpus, save=False):
 def precision_at_r(r):
     pass
 
+
 if __name__ == "__main__":
     
     parsed = get_test_questions(test_questions, ans_patterns, save=True)
 
     #for p in parsed.values(): print(p)
 
-    c = process_trec_xml(trec_corpus_xml, save=True)
+    corpus = process_trec_xml(trec_corpus_xml, save=True)
 
     #print(c['ft911-5'])
 
-    tdfs = compute_term_idfs(c, save=True)
+    tdfs = compute_term_idfs(corpus, save=True)
 
-    print(len(tdfs))
-    print(tdfs['the'])
-    print(tdfs['of'])
-    print(tdfs['is'])
-    print(tdfs['pakistan'])
+    tfidf_reprs = compute_tfidf_doc_repr(corpus, tdfs, save=True)
+
+    for r in tfidf_reprs: 
+        print(tfidf_reprs[r])
+        break
