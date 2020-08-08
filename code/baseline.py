@@ -128,17 +128,39 @@ def compute_tfidf_doc_repr(corpus, term_idfs, save=False):
         return corpus_tfidf_repr
 
 # returns the idf weighted representation, given tf based repr as input
-def get_tfidfs_repr(v):
-    pass
+def get_tfidfs_repr(v, term_idfs):
+    
+    v = Counter(v.split(" "))
+    q_max = max(v.values())
 
+    for k, val in v.items():
+        # normalize by max freq
+        v[k] = v[k] / q_max
+        # weight tf by idf
+        v[k] = v[k] * term_idfs[k]
+
+    return v
 
 def cosine_sim(q,d):
-    
-    #q = get_tfidfs_repr(q)
-    #d = get_tfidfs_repr(d)
 
-    mag_q = 0
-    mag_d = 0
+    # only terms common b/w q and d affect the dot product
+    # all other entries are either zero in query or in doc    
+    common_terms = set(q.keys()).intersection(set(d.keys()))
+
+    dot_prod = 0
+
+    for ct in common_terms:
+        
+        dot_prod += q[ct] * d[ct]
+        
+    mag_q = sum([v**2 for v in q.values()])
+    mag_d = sum([v**2 for v in d.values()])
+
+    denom = math.sqrt(mag_q) * math.sqrt(mag_d) 
+
+    score = dot_prod / denom
+
+    return score
     
 
 def compute_term_idfs(corpus, save=False):
@@ -183,24 +205,38 @@ def compute_term_idfs(corpus, save=False):
         return term_doc_freq
 
 
+def get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=1):
+
+    doc_scores = {
+        # doc id -> doc score
+    }
+
+    q = get_tfidfs_repr(q,term_idfs)
+
+    for d in tfidf_reprs:
+        #print(tfidf_reprs[d])
+        doc_scores[d] = cosine_sim(q, tfidf_reprs[d])
+
+    return sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[0:how_many]
+
 def precision_at_r(r):
     pass
 
 
 if __name__ == "__main__":
     
-    parsed = get_test_questions(test_questions, ans_patterns, save=True)
-
-    #for p in parsed.values(): print(p)
-
     corpus = process_trec_xml(trec_corpus_xml, save=True)
+    term_idfs = compute_term_idfs(corpus, save=True)
+    tfidf_reprs = compute_tfidf_doc_repr(corpus, term_idfs, save=True)
+    
+    test_qs = get_test_questions(test_questions, ans_patterns, save=True)
 
-    #print(c['ft911-5'])
+    q = "who is the author of the book the iron lady a biography of margaret thatcher"
+    print(q)
+    # TODO: this returns tuple of id and score. need to fix
+    rel_docs = get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=2)
 
-    tdfs = compute_term_idfs(corpus, save=True)
-
-    tfidf_reprs = compute_tfidf_doc_repr(corpus, tdfs, save=True)
-
-    for r in tfidf_reprs: 
-        print(tfidf_reprs[r])
-        break
+    for rd in rel_docs:
+        print(
+            corpus[rd[0]]
+        )
