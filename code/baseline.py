@@ -1,4 +1,5 @@
 import re
+from bs4 import BeautifulSoup
 
 data_root = "../data/"
 ans_patterns = data_root + "patterns.txt"
@@ -30,8 +31,22 @@ def get_test_questions(test_questions, ans_patterns):
     return qs
 
 def process_trec_xml(trec_corpus_xml):
-    pass
+    
+    corpus = {
+        # doc_no -> doc_text
+    }
 
+    with open(trec_corpus_xml,'r') as dh:
+
+        soup = BeautifulSoup(dh, 'html.parser')
+        article_texts = soup.find_all('doc')
+        print("Found %d articles..." % len(article_texts))
+        
+        for a in article_texts:
+            # for now we don't separate byline / headline etc
+            corpus[a.docno.get_text().lower()] = a.get_text().lower()
+ 
+    return corpus
 
 
 
@@ -41,4 +56,7 @@ if __name__ == "__main__":
 
     for p in parsed.values(): print(p)
 
-    print("Oh boi! I'm up!")
+    c = process_trec_xml(trec_corpus_xml)
+
+    print(c['ft911-5'])
+
