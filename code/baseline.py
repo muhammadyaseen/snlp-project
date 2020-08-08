@@ -1,5 +1,6 @@
 import re
 import pickle
+import math
 from bs4 import BeautifulSoup
 
 data_root = "../data/"
@@ -61,7 +62,7 @@ def process_trec_xml(trec_corpus_xml, save=False):
         print("Processing from scratch")
 
         corpus = {
-            # doc_no -> doc_text
+            # doc_id -> doc_text
         }
 
         with open(trec_corpus_xml,'r') as dh:
@@ -84,14 +85,57 @@ def process_trec_xml(trec_corpus_xml, save=False):
         return corpus
 
 
+def compute_term_freqs():
+    
+    # create representation of all docs in terms of their term freqs
+
+    pass
+
+def compute_term_idfs(corpus, save=False):
+    
+    term_doc_freq = {}
+    N = len(corpus.keys())
+
+    # first we get the document freq of a term 
+    # i.e. how many docs contain that term
+    # this is upper bounded by num of docs, of course
+    for doc in corpus.values():
+
+        # we are interested in just occurence, and not actual freqs
+        # that's why we convert the doc to set of non-repeating terms
+        terms = set(doc.split(" "))
+        
+        for term in terms:
+            
+            if term in term_doc_freq.keys():
+                term_doc_freq[term] += 1
+            else:
+                term_doc_freq[term] = 1
+
+    # now that we have term's df, we inverse it and apply log normalization
+    for t in term_doc_freq.keys():
+        term_doc_freq[t] = math.log(N/term_doc_freq[t])
+
+    return term_doc_freq
+
+
+def precision_at_r(r):
+    pass
 
 if __name__ == "__main__":
     
     parsed = get_test_questions(test_questions, ans_patterns, save=True)
 
-    for p in parsed.values(): print(p)
+    #for p in parsed.values(): print(p)
 
     c = process_trec_xml(trec_corpus_xml, save=True)
 
-    print(c['ft911-5'])
+    #print(c['ft911-5'])
 
+    tdfs = compute_term_idfs(c)
+
+    print(len(tdfs))
+    print(tdfs['the'])
+    print(tdfs['of'])
+    print(tdfs['is'])
+    print(tdfs['pakistan'])
