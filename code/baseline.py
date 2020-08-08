@@ -86,12 +86,43 @@ def process_trec_xml(trec_corpus_xml, save=False):
 
         return corpus
 
+def tf_repr(text):
 
-def compute_term_freqs():
+    tokens = text.split(" ")
+    terms = set(tokens)
+
+    d = {}
+
+    for t in tokens:
+        if t in d.keys():
+            d[t] += 1
+        else:
+            d[t] = 1
+
+    return d
+
+# create representation of all docs in terms of their term freqs
+def compute_term_freq_doc_repr(corpus):
     
-    # create representation of all docs in terms of their term freqs
+    corpus_tf_repr = {}
+    
+    for doc_id in corpus.keys():
 
+        pass
+
+# returns the idf weighted representation, given tf based repr as input
+def get_tfidfs_repr(v):
     pass
+
+def cosine_sim(q,d):
+    
+    q = get_tfidfs_repr(q)
+    d = get_tfidfs_repr(d)
+
+    mag_q =
+    mag_d =
+    
+
 
 def compute_term_idfs(corpus, save=False):
     
