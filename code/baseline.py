@@ -217,11 +217,31 @@ def get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=1):
         #print(tfidf_reprs[d])
         doc_scores[d] = cosine_sim(q, tfidf_reprs[d])
 
-    return sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[0:how_many]
+    assert how_many <= len(doc_scores) - 1
 
-def precision_at_r(r):
-    pass
+    sorted_scores = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[0:how_many]
 
+    # unpack the dict into separate lists
+    doc_ids, scores = zip(*sorted_scores)
+
+    return doc_ids, scores
+
+def precision_at_r(returned_docs, q, corpus):
+    
+    R = len(returned_docs)
+    relevant_count = 0
+
+    print(R, q)
+    # check if doc is relevant wrt any of the answer patterns
+    for d in returned_docs:
+        rel = []
+        for ap in q['ans_patterns']:
+            rel.append(bool(re.search(ap.strip(), corpus[d], flags=re.IGNORECASE))) 
+
+        relevant_count += int(any(rel))
+
+    print(relevant_count)
+    return relevant_count / R
 
 if __name__ == "__main__":
     
@@ -232,11 +252,15 @@ if __name__ == "__main__":
     test_qs = get_test_questions(test_questions, ans_patterns, save=True)
 
     q = "who is the author of the book the iron lady a biography of margaret thatcher"
-    print(q)
-    # TODO: this returns tuple of id and score. need to fix
-    rel_docs = get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=2)
+    
+    rel_docs, scores = get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=3)
 
-    for rd in rel_docs:
-        print(
-            corpus[rd[0]]
-        )
+    #print(test_qs)
+    print(
+        precision_at_r(rel_docs, test_qs[1], corpus)
+    )
+
+    #for rd in rel_docs:
+    #    print(
+    #        corpus[rd]
+    #    )
