@@ -1,10 +1,10 @@
 import re
 import pickle
 import math
+import string
 
 from bs4 import BeautifulSoup
 from collections import Counter
-from collections import defaultdict
 
 
 data_root = "../data/"
@@ -36,7 +36,11 @@ def get_test_questions(test_questions, ans_patterns, save=False):
         result = re.findall(question_extraction_pattern, questions_doc, re.MULTILINE)
 
         for q in result:
-            qs[int(q[0])] = {'question': q[1], 'ans_patterns': []}
+            
+            processed_q = q[1].lower()
+            processed_q = processed_q.translate(str.maketrans('','', string.punctuation))
+            
+            qs[int(q[0])] = {'raw_question': q[1], 'question': processed_q, 'ans_patterns': []}
 
         # get associated answer patterns
         ans_doc = open(ans_patterns).readlines()
@@ -44,7 +48,7 @@ def get_test_questions(test_questions, ans_patterns, save=False):
         for ap in ans_doc:
             #print(ap)
             ap = ap.split(" ")
-            id, pattern = ap[0], " ".join(ap[1:])
+            id, pattern = ap[0], " ".join(ap[1:]).strip()
             qs[int(id)]['ans_patterns'].append(pattern) 
 
         if save:
@@ -81,7 +85,14 @@ def process_trec_xml(trec_corpus_xml, save=False):
             
             for a in article_texts:
                 # for now we don't separate byline / headline etc
-                corpus[a.docno.get_text().lower()] = a.get_text().lower()
+                doc_id = a.docno.get_text().lower().strip()
+                text = a.get_text().lower()
+                # remove common punct
+                text = text.translate(str.maketrans('','', string.punctuation))
+                text = text.replace('\n','')
+                text = text.replace('\r','')
+                
+                corpus[doc_id] = text
         
         if save:
             print("saving processed corpus, existing data will be overwritten")
@@ -211,7 +222,7 @@ def get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=1):
         # doc id -> doc score
     }
 
-    q = get_tfidfs_repr(q,term_idfs)
+    q = get_tfidfs_repr(q['question'],term_idfs)
 
     for d in tfidf_reprs:
         #print(tfidf_reprs[d])
@@ -251,9 +262,9 @@ if __name__ == "__main__":
     
     test_qs = get_test_questions(test_questions, ans_patterns, save=True)
 
-    q = "who is the author of the book the iron lady a biography of margaret thatcher"
+    #q = "who is the author of the book the iron lady a biography of margaret thatcher"
     
-    rel_docs, scores = get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=3)
+    rel_docs, scores = get_relevant_docs(test_qs[1], tfidf_reprs, term_idfs, how_many=50)
 
     #print(test_qs)
     print(
