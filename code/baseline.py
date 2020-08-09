@@ -148,7 +148,12 @@ def get_tfidfs_repr(v, term_idfs):
         # normalize by max freq
         v[k] = v[k] / q_max
         # weight tf by idf
-        v[k] = v[k] * term_idfs[k]
+        try:
+            v[k] = v[k] * term_idfs[k]
+        except KeyError as ke:
+            # we might not have IDF score for some question terms.
+            # so we just use TF value, this is same as setting IDF = 1
+            pass
 
     return v
 
@@ -242,7 +247,7 @@ def precision_at_r(returned_docs, q, corpus):
     R = len(returned_docs)
     relevant_count = 0
 
-    print(R, q)
+    #print(R, q)
     # check if doc is relevant wrt any of the answer patterns
     for d in returned_docs:
         rel = []
@@ -251,7 +256,7 @@ def precision_at_r(returned_docs, q, corpus):
 
         relevant_count += int(any(rel))
 
-    print(relevant_count)
+    #print(relevant_count)
     return relevant_count / R
 
 if __name__ == "__main__":
@@ -262,16 +267,14 @@ if __name__ == "__main__":
     
     test_qs = get_test_questions(test_questions, ans_patterns, save=True)
 
-    #q = "who is the author of the book the iron lady a biography of margaret thatcher"
+    ps = []
+    for q in test_qs:
+
+        rel_docs, scores = get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=50)
+
+        ps.append(
+            precision_at_r(rel_docs, test_qs[q], corpus)
+        )
+
+    print(sum(ps)/50)
     
-    rel_docs, scores = get_relevant_docs(test_qs[1], tfidf_reprs, term_idfs, how_many=50)
-
-    #print(test_qs)
-    print(
-        precision_at_r(rel_docs, test_qs[1], corpus)
-    )
-
-    #for rd in rel_docs:
-    #    print(
-    #        corpus[rd]
-    #    )
