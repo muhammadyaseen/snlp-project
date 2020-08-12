@@ -255,6 +255,24 @@ def precision_at_r(returned_docs, q, corpus):
     # print(relevant_count)
     return relevant_count / R
 
+# a utility function to find out how many docs are relevant 
+# to a given query. Can be considered a histogram.
+# we expect to see a highly skewed histogram, with 1-5 docs relevant per query.    
+def relevant_per_query(corpus, queries):
+    #print(queries)
+    # init rel counts with zero per query
+    rel_counts = [0 for i in range(len(queries))]
+
+    # check if doc is relevant wrt any of the answer patterns
+    for doc in corpus:
+        for q in queries:
+            #print(q)
+            for ap in queries[q]['ans_patterns']:
+                rel_counts[q-1] += bool(re.search(ap.strip(), corpus[doc], flags=re.IGNORECASE))
+
+    return rel_counts
+     
+
 
 if __name__ == "__main__":
 
@@ -264,12 +282,15 @@ if __name__ == "__main__":
 
     test_qs = get_test_questions(test_questions, ans_patterns, save=True)
 
-    ps = []
-    for q in test_qs:
-        rel_docs, scores = get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=50)
+    # ps = []
+    # for q in test_qs:
+    #     rel_docs, scores = get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=50)
 
-        ps.append(
-            precision_at_r(rel_docs, test_qs[q], corpus)
-        )
+    #     ps.append(
+    #         precision_at_r(rel_docs, test_qs[q], corpus)
+    #     )
 
-    print(sum(ps) / 50)
+    print( 
+        relevant_per_query(corpus, test_qs)
+    )
+    #print(sum(ps) / 50)
