@@ -261,16 +261,18 @@ def precision_at_r(returned_docs, q, corpus):
 def relevant_per_query(corpus, queries):
     #print(queries)
     # init rel counts with zero per query
+    from collections import defaultdict
     rel_counts = [0 for i in range(len(queries))]
-
+    rel_anspat = defaultdict(int)
     # check if doc is relevant wrt any of the answer patterns
     for doc in corpus:
         for q in queries:
             #print(q)
             for ap in queries[q]['ans_patterns']:
+                rel_anspat[ap.strip()] += bool(re.search(ap.strip(), corpus[doc], flags=re.IGNORECASE))
                 rel_counts[q-1] += bool(re.search(ap.strip(), corpus[doc], flags=re.IGNORECASE))
 
-    return rel_counts
+    return rel_counts, rel_anspat
      
 
 
