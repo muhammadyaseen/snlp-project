@@ -15,7 +15,7 @@
 3 plastic\s+components
 4 Pounds\s+12\s*(?:m|(?:million))
 5 Horne
-6 To\s+record\s+his\s+revelations
+6 to\s+record\s+his\s+revelations
 6 finish\w*\s+writing.*?revelations
 7 1\.4\s*(?:(?:bn)|(?:billion))
 7 1\.6\s*(?:(?:bn)|(?:billion))

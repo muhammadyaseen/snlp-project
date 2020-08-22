@@ -23,6 +23,7 @@ processed_tfidf_repr = processed_root + "tfrepr.pkl"
 question_extraction_pattern = "Number: (\d+) *\n\n\<desc\> Description\:\n(\w+.*)\n\n\<\/top>"
 
 
+# TODO: Remove this from here
 def get_test_questions(test_questions, ans_patterns, save=False):
     try:
         print("Loading from saved pickle")
@@ -86,7 +87,7 @@ def process_trec_xml(trec_corpus_xml, save=False):
             for a in article_texts:
                 # for now we don't separate byline / headline etc
                 doc_id = a.docno.get_text().lower().strip()
-                text = a.get_text().lower()
+                text = a.find('text').get_text().lower()
                 # remove common punct
                 text = text.translate(str.maketrans('', '', string.punctuation))
                 text = text.replace('\n', '')
@@ -256,6 +257,15 @@ def precision_at_r(returned_docs, q, corpus):
     return relevant_count / R
 
 
+def search_docs(query, corpus, n=50):
+    term_idfs = compute_term_idfs(corpus, save=True)
+    tfidf_reprs = compute_tfidf_doc_repr(corpus, term_idfs, save=True)
+
+    rel_docs, scores = get_relevant_docs(query, tfidf_reprs, term_idfs, how_many=n)
+
+    return rel_docs, scores
+
+
 if __name__ == "__main__":
 
     corpus = process_trec_xml(trec_corpus_xml, save=True)
@@ -264,12 +274,13 @@ if __name__ == "__main__":
 
     test_qs = get_test_questions(test_questions, ans_patterns, save=True)
 
-    ps = []
-    for q in test_qs:
-        rel_docs, scores = get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=50)
+    for r in range(10, 60, 10):
+        ps = []
+        for q in test_qs:
+            rel_docs, scores = get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=r)
 
-        ps.append(
-            precision_at_r(rel_docs, test_qs[q], corpus)
-        )
+            ps.append(
+                precision_at_r(rel_docs, test_qs[q], corpus)
+            )
 
-    print(sum(ps) / 50)
+        print(f'Precision at r={r}: {sum(ps) / len(test_qs)}')
