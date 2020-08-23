@@ -38,10 +38,10 @@ def count_answer_per_pattern(corpus, queries):
 
 if __name__ == '__main__':
     test_qs = get_test_questions()
-    corpus = util.get_stemmed_corpus(baseline.trec_corpus_xml)
+    corpus = util.get_corpus(baseline.trec_corpus_xml)
     # relevant_per_query(corpus, test_qs)
-    # c = count_answer_per_question([x['text'] for x in corpus], test_qs)
-    c = count_answer_per_pattern(corpus, test_qs)
+    c = count_answer_per_question([x['text'] for x in corpus], test_qs)
+    # c = count_answer_per_pattern(corpus, test_qs)
     x = [v for k, v in c.items()]
 
     print("50th percentile of arr : ",

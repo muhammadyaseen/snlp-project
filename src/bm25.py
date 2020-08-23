@@ -6,21 +6,47 @@ from rank_bm25 import BM25L
 from rank_bm25 import BM25Plus
 
 from src import baseline, util
-from src.util import get_stemmed_corpus, preprocess
+from src.util import get_corpus, preprocess
 from gensim.summarization.bm25 import BM25
 
 
-def calculate_bm25(corpus, query):
-    bm25 = BM25Okapi([x['tokens'] for x in corpus])
+def calculate_bm25(corpus, query, variant='Okapi'):
+    # Function for calculating BM25 scores for a prepocessed corpus.
+    tokens = [x['tokens'] for x in corpus]
+    if variant == 'Okapi':
+        bm25 = BM25Okapi(tokens)
+    elif variant == 'BM25L':
+        bm25 = BM25L(tokens)
+    elif variant == 'BM25Plus':
+        bm25 = BM25Plus(tokens)
     tokenized_query = preprocess(query)
     doc_scores = bm25.get_scores(tokenized_query)
-    for i in range(len(corpus)):
-        corpus[i]['score'] = doc_scores[i]
-    ranked_docs = sorted(corpus, key=lambda x: x['score'], reverse=True)
-    return ranked_docs
+
+    ranked_docs = sorted(zip(corpus, doc_scores), key=lambda x: x[1], reverse=True)
+
+    docs, scores = zip(*ranked_docs)
+    return docs, scores
+
+def calculate_bm25_sentences(corpus, query, variant='Okapi'):
+    # Function for calculating BM25 scores for a corpus of sentences.
+    # Only differece to `calculate_bm25` is the additional `prepocessing`
+    tokens = [preprocess(x) for x in corpus]
+    if variant == 'Okapi':
+        bm25 = BM25Okapi(tokens)
+    elif variant == 'BM25L':
+        bm25 = BM25L(tokens)
+    elif variant == 'BM25Plus':
+        bm25 = BM25Plus(tokens)
+    tokenized_query = preprocess(query)
+    doc_scores = bm25.get_scores(tokenized_query)
+
+    ranked_docs = sorted(zip(corpus, doc_scores), key=lambda x: x[1], reverse=True)
+
+    docs, scores = zip(*ranked_docs)
+    return docs, scores
 
 
-def cal_bm25_gensim(corpus, query):
+def calculate_bm25_gensim(corpus, query):
     bm25 = BM25([x['tokens'] for x in corpus])
     tokenized_query = preprocess(query)
     doc_scores = bm25.get_scores_bow(tokenized_query)
@@ -30,30 +56,28 @@ def cal_bm25_gensim(corpus, query):
 
 
 if __name__ == '__main__':
-    corpus = get_stemmed_corpus(save=True)
+    corpus = get_corpus(save=True)
     test_qs = util.get_test_questions(save=True)
 
     term_idfs = baseline.compute_term_idfs(corpus, save=True)
     tfidf_reprs = baseline.compute_tfidf_doc_repr(corpus, term_idfs, save=True)
 
-    r_values = []
-    for q in test_qs:
-        # docs, scores = baseline.search_docs(test_qs[q], corpus, 1000)
-        docs, scores = baseline.get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=1000)
+    # Benchmark different BM25 variiants
+    for variant in ['Okapi', 'BM25L', 'BM25Plus']:
+        # Precision for different r values
+        for r in range(10, 60, 10):
 
-        ans_pattern = "|".join(test_qs[q]['ans_patterns'])
-        ranked_docs = calculate_bm25(corpus, test_qs[q]['raw_question'])
-        ranked_docs1 = cal_bm25_gensim(corpus, test_qs[q]['raw_question'])
+            precision_values = []
+            for question in test_qs.values():
+                docs, scores = baseline.get_relevant_docs(question['raw_question'], tfidf_reprs,
+                                                          term_idfs, corpus, 1000)
 
-        relevant_docs = 0
-        # Consider the best 50 documents
-        top_ranked_docs = ranked_docs1[:50]
-        for doc in top_ranked_docs:
-            if bool(re.search(ans_pattern, doc['text'], flags=re.IGNORECASE)):
-                relevant_docs = relevant_docs + 1
+                ans_pattern = "|".join(question['ans_patterns'])
 
-        r_value = relevant_docs / len(top_ranked_docs)
-        # 0.11144324324324324
-        r_values.append(r_value)
+                ranked_docs, scores = calculate_bm25(corpus, question['raw_question'], variant)
+                # ranked_docs = calculate_bm25_gensim(docs, question['raw_question'])
 
-    print(mean(r_values))
+                precision = util.precision_at_r(ranked_docs, ans_pattern, r)
+                # print(f'precision({r}): {precision} for question: {question["raw_question"]}')
+                precision_values.append(precision)
+            print(f'Precision at r={r} using variant {variant}: {mean(precision_values)}')

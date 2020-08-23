@@ -21,10 +21,8 @@ trec_corpus_xml = data_root + "trec_documents.xml"
 processed_root = data_root + "processed/"
 os.makedirs(processed_root, exist_ok=True)
 
-processed_corpus = processed_root + "stemmed_corpus.pkl"
+processed_corpus = processed_root + "corpus.pkl"
 processed_text_qs = processed_root + "test_qs.pkl"
-# processed_tfids = processed_root + "tfids.pkl"
-# processed_tfidf_repr = processed_root + "tfrepr.pkl"
 
 stemmer = SnowballStemmer("english")
 stopwordslist = stopwords.words()
@@ -69,7 +67,7 @@ def get_test_questions(save=False):
 
 
 def clean(text):
-    text = text.replace("'s","")
+    text = text.replace("'s", "")
     text = text.translate(str.maketrans('', '', string.punctuation))
     return text
 
@@ -82,17 +80,19 @@ def tokenize(text):
     return words
 
 
-def preprocess(text):
+def preprocess(text, stem=True):
     tokens = tokenize(text.lower())
 
     tokens_without_sw = [word for word in tokens if word not in stopwordslist]
 
-    stemmed = [stemmer.stem(word) for word in tokens_without_sw]
+    if stem:
+        stemmed = [stemmer.stem(word) for word in tokens_without_sw]
+        return stemmed
+    else:
+        return tokens_without_sw
 
-    return stemmed
 
-
-def get_stemmed_corpus(trec_corpus_xml=trec_corpus_xml, save=False):
+def get_corpus(trec_corpus_xml=trec_corpus_xml, save=False):
     try:
         print("Loading from saved pickle")
         corpus = pickle.load(open(processed_corpus, "rb"))
@@ -147,9 +147,9 @@ def precision_at_r(docs, ans_pattern, r=50):
         if bool(re.search(ans_pattern, doc['text'])):
             relevant_docs = relevant_docs + 1
 
-    r_value = relevant_docs / len(docs)
+    r_value = relevant_docs / r
     return r_value
 
 
 if __name__ == '__main__':
-    corpus = get_stemmed_corpus(trec_corpus_xml, save=True)
+    corpus = get_corpus(trec_corpus_xml, save=True)

@@ -18,54 +18,10 @@ trec_corpus_xml = data_root + "trec_documents.xml"
 processed_root = data_root + "processed/"
 os.makedirs(processed_root, exist_ok=True)
 
-processed_corpus = processed_root + "corpus.pkl"
-processed_text_qs = processed_root + "test_qs.pkl"
 processed_tfids = processed_root + "tfids.pkl"
 processed_tfidf_repr = processed_root + "tfrepr.pkl"
 
 question_extraction_pattern = "Number: (\d+) *\n\n\<desc\> Description\:\n(\w+.*)\n\n\<\/top>"
-
-
-# def process_trec_xml(trec_corpus_xml, save=False):
-#     try:
-#         print("Loading from saved pickle")
-#         corpus = pickle.load(open(processed_corpus, "rb"))
-#         return corpus
-#
-#     except Exception as e:
-#
-#         print("Data doesn't exit or other error", e)
-#         print("Processing from scratch")
-#
-#         corpus = {
-#             # doc_id -> doc_text
-#         }
-#
-#         with open(trec_corpus_xml, 'r') as dh:
-#
-#             soup = BeautifulSoup(dh, 'html.parser')
-#             article_texts = soup.find_all('doc')
-#             print("Found %d articles..." % len(article_texts))
-#
-#             for a in article_texts:
-#                 # for now we don't separate byline / headline etc
-#                 doc_id = a.docno.get_text().lower().strip()
-#                 text = a.find('text').get_text().lower()
-#                 # remove common punct
-#                 text = text.translate(str.maketrans('', '', string.punctuation))
-#                 text = text.replace('\n', '')
-#                 text = text.replace('\r', '')
-#
-#                 corpus[doc_id] = text
-#
-#         if save:
-#             print("saving processed corpus, existing data will be overwritten")
-#             pickle.dump(
-#                 corpus,
-#                 open(processed_corpus, "wb")
-#             )
-#
-#         return corpus
 
 
 # create representation of all docs in terms of their term freqs
@@ -185,15 +141,18 @@ def compute_term_idfs(corpus, save=False):
 
 
 # TODO: Rename - there are not relevant docs, just retrieved docs
-def get_relevant_docs(query, tfidf_reprs, term_idfs, corpus, how_many=100):
+def get_relevant_docs(query, tfidf_reprs, term_idfs, corpus, how_many=1000):
     assert how_many < len(tfidf_reprs)
 
     q = get_tfidfs_repr(query, term_idfs)
 
     doc_scores = [cosine_sim(q, x) for x in tfidf_reprs]
 
-    # Return only top 100 results by default
+    # Return only top 1000 results by default
     sorted_docs = sorted(zip(corpus, doc_scores), key=lambda x: x[1], reverse=True)[:how_many]
+
+    # Remove docs with a score of 0
+    sorted_docs = list(filter(lambda x: x[1] > 0, sorted_docs))
 
     docs, scores = zip(*sorted_docs)
     return docs, scores
@@ -201,7 +160,7 @@ def get_relevant_docs(query, tfidf_reprs, term_idfs, corpus, how_many=100):
 
 if __name__ == "__main__":
 
-    corpus = util.get_stemmed_corpus(save=True)
+    corpus = util.get_corpus(save=True)
     term_idfs = compute_term_idfs(corpus, save=True)
     tfidf_reprs = compute_tfidf_doc_repr(corpus, term_idfs, save=True)
 
@@ -216,7 +175,7 @@ if __name__ == "__main__":
             ans_pattern = "|".join(question['ans_patterns'])
 
             precision = util.precision_at_r(docs, ans_pattern, r)
-            print(f'precision({r}): {precision} for question: {question["raw_question"]}')
+            # print(f'precision({r}): {precision} for question: {question["raw_question"]}')
             precision_values.append(precision)
 
         print(f'Precision at r={r}: {mean(precision_values)}')
