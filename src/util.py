@@ -8,6 +8,7 @@ import nltk
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
+# TODO: Uncomment
 # nltk.download('punkt')
 # nltk.download('stopwords')
 from rank_bm25 import BM25Okapi
@@ -22,8 +23,8 @@ os.makedirs(processed_root, exist_ok=True)
 
 processed_corpus = processed_root + "stemmed_corpus.pkl"
 processed_text_qs = processed_root + "test_qs.pkl"
-processed_tfids = processed_root + "tfids.pkl"
-processed_tfidf_repr = processed_root + "tfrepr.pkl"
+# processed_tfids = processed_root + "tfids.pkl"
+# processed_tfidf_repr = processed_root + "tfrepr.pkl"
 
 stemmer = SnowballStemmer("english")
 stopwordslist = stopwords.words()
@@ -68,6 +69,7 @@ def get_test_questions(save=False):
 
 
 def clean(text):
+    text = text.replace("'s","")
     text = text.translate(str.maketrans('', '', string.punctuation))
     return text
 
@@ -137,6 +139,16 @@ def process_doc(a):
     except Exception as e:
         print(f'Error processing {doc_id}:  {e}')
         return None
+
+
+def precision_at_r(docs, ans_pattern, r=50):
+    relevant_docs = 0
+    for doc in docs[:r]:
+        if bool(re.search(ans_pattern, doc['text'], flags=re.IGNORECASE)):
+            relevant_docs = relevant_docs + 1
+
+    r_value = relevant_docs / len(docs)
+    return r_value
 
 
 if __name__ == '__main__':

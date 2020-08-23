@@ -4,8 +4,11 @@ import pickle
 import re
 import string
 from collections import Counter
+from statistics import mean
 
 from bs4 import BeautifulSoup
+
+from src import util
 
 data_root = "../data/"
 ans_patterns = data_root + "patterns.txt"
@@ -23,86 +26,46 @@ processed_tfidf_repr = processed_root + "tfrepr.pkl"
 question_extraction_pattern = "Number: (\d+) *\n\n\<desc\> Description\:\n(\w+.*)\n\n\<\/top>"
 
 
-# TODO: Remove this from here
-def get_test_questions(test_questions, ans_patterns, save=False):
-    try:
-        print("Loading from saved pickle")
-        test_qs = pickle.load(open(processed_text_qs, "rb"))
-        return test_qs
-
-    except Exception as e:
-
-        # get question id and text
-        qs = {}
-        questions_doc = open(test_questions).read()
-        question_extraction_pattern = "^\<num\> Number: (\d+) *\n\n\<desc\> Description\:\n(\w+.*)\n\n\<\/top>$"
-        result = re.findall(question_extraction_pattern, questions_doc, re.MULTILINE)
-
-        for q in result:
-            processed_q = q[1].lower()
-            processed_q = processed_q.translate(str.maketrans('', '', string.punctuation))
-
-            qs[int(q[0])] = {'raw_question': q[1], 'question': processed_q, 'ans_patterns': []}
-
-        # get associated answer patterns
-        ans_doc = open(ans_patterns).readlines()
-
-        for ap in ans_doc:
-            # print(ap)
-            ap = ap.split(" ")
-            id, pattern = ap[0], " ".join(ap[1:]).strip()
-            qs[int(id)]['ans_patterns'].append(pattern)
-
-        if save:
-            print("saving processed questions, existing data will be overwritten")
-            pickle.dump(
-                qs,
-                open(processed_text_qs, "wb")
-            )
-
-        return qs
-
-
-def process_trec_xml(trec_corpus_xml, save=False):
-    try:
-        print("Loading from saved pickle")
-        corpus = pickle.load(open(processed_corpus, "rb"))
-        return corpus
-
-    except Exception as e:
-
-        print("Data doesn't exit or other error", e)
-        print("Processing from scratch")
-
-        corpus = {
-            # doc_id -> doc_text
-        }
-
-        with open(trec_corpus_xml, 'r') as dh:
-
-            soup = BeautifulSoup(dh, 'html.parser')
-            article_texts = soup.find_all('doc')
-            print("Found %d articles..." % len(article_texts))
-
-            for a in article_texts:
-                # for now we don't separate byline / headline etc
-                doc_id = a.docno.get_text().lower().strip()
-                text = a.find('text').get_text().lower()
-                # remove common punct
-                text = text.translate(str.maketrans('', '', string.punctuation))
-                text = text.replace('\n', '')
-                text = text.replace('\r', '')
-
-                corpus[doc_id] = text
-
-        if save:
-            print("saving processed corpus, existing data will be overwritten")
-            pickle.dump(
-                corpus,
-                open(processed_corpus, "wb")
-            )
-
-        return corpus
+# def process_trec_xml(trec_corpus_xml, save=False):
+#     try:
+#         print("Loading from saved pickle")
+#         corpus = pickle.load(open(processed_corpus, "rb"))
+#         return corpus
+#
+#     except Exception as e:
+#
+#         print("Data doesn't exit or other error", e)
+#         print("Processing from scratch")
+#
+#         corpus = {
+#             # doc_id -> doc_text
+#         }
+#
+#         with open(trec_corpus_xml, 'r') as dh:
+#
+#             soup = BeautifulSoup(dh, 'html.parser')
+#             article_texts = soup.find_all('doc')
+#             print("Found %d articles..." % len(article_texts))
+#
+#             for a in article_texts:
+#                 # for now we don't separate byline / headline etc
+#                 doc_id = a.docno.get_text().lower().strip()
+#                 text = a.find('text').get_text().lower()
+#                 # remove common punct
+#                 text = text.translate(str.maketrans('', '', string.punctuation))
+#                 text = text.replace('\n', '')
+#                 text = text.replace('\r', '')
+#
+#                 corpus[doc_id] = text
+#
+#         if save:
+#             print("saving processed corpus, existing data will be overwritten")
+#             pickle.dump(
+#                 corpus,
+#                 open(processed_corpus, "wb")
+#             )
+#
+#         return corpus
 
 
 # create representation of all docs in terms of their term freqs
@@ -115,11 +78,11 @@ def compute_tfidf_doc_repr(corpus, term_idfs, save=False):
 
     except Exception as e:
 
-        corpus_tfidf_repr = {}
+        corpus_tfidf_repr = []
 
-        for doc_id in corpus:
+        for doc in corpus:
 
-            tf_repr = Counter(corpus[doc_id].split(" "))
+            tf_repr = Counter(doc['tokens'])
             doc_max = max(tf_repr.values())
 
             for k, v in tf_repr.items():
@@ -128,7 +91,7 @@ def compute_tfidf_doc_repr(corpus, term_idfs, save=False):
                 # weight tf by idf
                 tf_repr[k] = tf_repr[k] * term_idfs[k]
 
-            corpus_tfidf_repr[doc_id] = tf_repr
+            corpus_tfidf_repr.append(tf_repr)
 
         if save:
             print("saving tfid repr, existing data will be overwritten")
@@ -140,23 +103,24 @@ def compute_tfidf_doc_repr(corpus, term_idfs, save=False):
         return corpus_tfidf_repr
 
 
-# returns the idf weighted representation, given tf based repr as input
-def get_tfidfs_repr(v, term_idfs):
-    v = Counter(v.split(" "))
-    q_max = max(v.values())
+# returns the idf weighted representation for a query, given tf based repr as input
+def get_tfidfs_repr(query, term_idfs):
+    tokens = util.preprocess(query)
+    tf_idf_repr = Counter(tokens)
+    q_max = max(tf_idf_repr.values())
 
-    for k, val in v.items():
+    for k, val in tf_idf_repr.items():
         # normalize by max freq
-        v[k] = v[k] / q_max
+        tf_idf_repr[k] = tf_idf_repr[k] / q_max
         # weight tf by idf
         try:
-            v[k] = v[k] * term_idfs[k]
+            tf_idf_repr[k] = tf_idf_repr[k] * term_idfs[k]
         except KeyError as ke:
             # we might not have IDF score for some question terms.
             # so we just use TF value, this is same as setting IDF = 1
             pass
 
-    return v
+    return tf_idf_repr
 
 
 def cosine_sim(q, d):
@@ -188,7 +152,7 @@ def compute_term_idfs(corpus, save=False):
     except Exception as e:
 
         term_doc_freq = {}
-        N = len(corpus.keys())
+        N = len(corpus)
 
         # first we get the document freq of a term 
         # i.e. how many docs contain that term
@@ -197,7 +161,7 @@ def compute_term_idfs(corpus, save=False):
 
             # we are interested in just occurrence, and not actual freqs
             # that's why we convert the doc to set of non-repeating terms
-            terms = set(corpus[doc].split(" "))
+            terms = set(doc['tokens'])
 
             for term in terms:
 
@@ -220,67 +184,39 @@ def compute_term_idfs(corpus, save=False):
         return term_doc_freq
 
 
-def get_relevant_docs(q, tfidf_reprs, term_idfs, how_many=1):
+# TODO: Rename - there are not relevant docs, just retrieved docs
+def get_relevant_docs(query, tfidf_reprs, term_idfs, corpus, how_many=100):
     assert how_many < len(tfidf_reprs)
 
-    doc_scores = {
-        # doc id -> doc score
-    }
+    q = get_tfidfs_repr(query, term_idfs)
 
-    q = get_tfidfs_repr(q['question'], term_idfs)
+    doc_scores = [cosine_sim(q, x) for x in tfidf_reprs]
 
-    for d in tfidf_reprs:
-        doc_scores[d] = cosine_sim(q, tfidf_reprs[d])
+    # Return only top 100 results by default
+    sorted_docs = sorted(zip(corpus, doc_scores), key=lambda x: x[1], reverse=True)[:how_many]
 
-    sorted_scores = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[:how_many]
-
-    # unpack the dict into separate lists
-    doc_ids, scores = zip(*sorted_scores)
-
-    return doc_ids, scores
-
-
-def precision_at_r(returned_docs, q, corpus):
-    R = len(returned_docs)
-    relevant_count = 0
-
-    # print(R, q)
-    # check if doc is relevant wrt any of the answer patterns
-    for d in returned_docs:
-        rel = []
-        for ap in q['ans_patterns']:
-            rel.append(bool(re.search(ap.strip(), corpus[d], flags=re.IGNORECASE)))
-
-        relevant_count += int(any(rel))
-
-    # print(relevant_count)
-    return relevant_count / R
-
-
-def search_docs(query, corpus, n=50):
-    term_idfs = compute_term_idfs(corpus, save=True)
-    tfidf_reprs = compute_tfidf_doc_repr(corpus, term_idfs, save=True)
-
-    rel_docs, scores = get_relevant_docs(query, tfidf_reprs, term_idfs, how_many=n)
-
-    return rel_docs, scores
+    docs, scores = zip(*sorted_docs)
+    return docs, scores
 
 
 if __name__ == "__main__":
 
-    corpus = process_trec_xml(trec_corpus_xml, save=True)
+    corpus = util.get_stemmed_corpus(save=True)
     term_idfs = compute_term_idfs(corpus, save=True)
     tfidf_reprs = compute_tfidf_doc_repr(corpus, term_idfs, save=True)
 
-    test_qs = get_test_questions(test_questions, ans_patterns, save=True)
+    test_qs = util.get_test_questions(save=True)
 
     for r in range(10, 60, 10):
-        ps = []
-        for q in test_qs:
-            rel_docs, scores = get_relevant_docs(test_qs[q], tfidf_reprs, term_idfs, how_many=r)
+        precision_values = []
+        for question in test_qs.values():
+            docs, scores = get_relevant_docs(question['raw_question'], tfidf_reprs,
+                                             term_idfs, corpus)
 
-            ps.append(
-                precision_at_r(rel_docs, test_qs[q], corpus)
-            )
+            ans_pattern = "|".join(question['ans_patterns'])
 
-        print(f'Precision at r={r}: {sum(ps) / len(test_qs)}')
+            precision = util.precision_at_r(docs, ans_pattern, r)
+            print(f'precision({r}): {precision} for question: {question["raw_question"]}')
+            precision_values.append(precision)
+
+        print(f'Precision at r={r}: {mean(precision_values)}')
