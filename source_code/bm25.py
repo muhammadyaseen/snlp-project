@@ -1,13 +1,12 @@
-import re
 from statistics import mean
 
-from rank_bm25 import BM25Okapi
+from gensim.summarization.bm25 import BM25
 from rank_bm25 import BM25L
+from rank_bm25 import BM25Okapi
 from rank_bm25 import BM25Plus
 
-from src import baseline, util
-from src.util import get_corpus, preprocess
-from gensim.summarization.bm25 import BM25
+from source_code import baseline, util
+from source_code.util import get_corpus, preprocess
 
 
 def calculate_bm25(corpus, query, variant='Okapi'):
@@ -26,6 +25,7 @@ def calculate_bm25(corpus, query, variant='Okapi'):
 
     docs, scores = zip(*ranked_docs)
     return docs, scores
+
 
 def calculate_bm25_sentences(corpus, query, variant='Okapi'):
     # Function for calculating BM25 scores for a corpus of sentences.
@@ -69,12 +69,12 @@ if __name__ == '__main__':
 
             precision_values = []
             for question in test_qs.values():
-                docs, scores = baseline.get_relevant_docs(question['raw_question'], tfidf_reprs,
-                                                          term_idfs, corpus, 1000)
+                docs, _ = baseline.search_docs(question['raw_question'], tfidf_reprs,
+                                                    term_idfs, corpus, 1000)
 
                 ans_pattern = "|".join(question['ans_patterns'])
 
-                ranked_docs, scores = calculate_bm25(corpus, question['raw_question'], variant)
+                ranked_docs, _ = calculate_bm25(corpus, question['raw_question'], variant)
                 # ranked_docs = calculate_bm25_gensim(docs, question['raw_question'])
 
                 precision = util.precision_at_r(ranked_docs, ans_pattern, r)

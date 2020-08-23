@@ -1,14 +1,10 @@
 import math
 import os
 import pickle
-import re
-import string
 from collections import Counter
 from statistics import mean
 
-from bs4 import BeautifulSoup
-
-from src import util
+from source_code import util
 
 data_root = "../data/"
 ans_patterns = data_root + "patterns.txt"
@@ -141,7 +137,7 @@ def compute_term_idfs(corpus, save=False):
 
 
 # TODO: Rename - there are not relevant docs, just retrieved docs
-def get_relevant_docs(query, tfidf_reprs, term_idfs, corpus, how_many=1000):
+def search_docs(query, tfidf_reprs, term_idfs, corpus, how_many=1000):
     assert how_many < len(tfidf_reprs)
 
     q = get_tfidfs_repr(query, term_idfs)
@@ -169,8 +165,8 @@ if __name__ == "__main__":
     for r in range(10, 60, 10):
         precision_values = []
         for question in test_qs.values():
-            docs, scores = get_relevant_docs(question['raw_question'], tfidf_reprs,
-                                             term_idfs, corpus)
+            docs, scores = search_docs(question['raw_question'], tfidf_reprs,
+                                       term_idfs, corpus)
 
             ans_pattern = "|".join(question['ans_patterns'])
 

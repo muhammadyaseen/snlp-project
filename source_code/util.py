@@ -8,10 +8,9 @@ import nltk
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
-# TODO: Uncomment
-# nltk.download('punkt')
-# nltk.download('stopwords')
-from rank_bm25 import BM25Okapi
+
+nltk.download('punkt')
+nltk.download('stopwords')
 
 data_root = "../data/"
 ans_patterns = data_root + "patterns.txt"
@@ -80,7 +79,7 @@ def tokenize(text):
     return words
 
 
-def preprocess(text, stem=True):
+def preprocess(text, stem=False):
     tokens = tokenize(text.lower())
 
     tokens_without_sw = [word for word in tokens if word not in stopwordslist]
@@ -104,9 +103,9 @@ def get_corpus(trec_corpus_xml=trec_corpus_xml, save=False):
         print("Processing from scratch")
 
     with open(trec_corpus_xml, 'r') as dh:
-        # TODO: Change to html parser for portability
-        # soup = BeautifulSoup(dh, 'html.parser')
-        soup = BeautifulSoup(dh, 'lxml')
+        soup = BeautifulSoup(dh, 'html.parser')
+        # lxml is faster, but needs to be installed
+        # soup = BeautifulSoup(dh, 'lxml')
         article_texts = soup.find_all('doc')
         print("Found %d articles..." % len(article_texts))
 
