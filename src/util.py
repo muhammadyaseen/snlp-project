@@ -144,7 +144,7 @@ def process_doc(a):
 def precision_at_r(docs, ans_pattern, r=50):
     relevant_docs = 0
     for doc in docs[:r]:
-        if bool(re.search(ans_pattern, doc['text'], flags=re.IGNORECASE)):
+        if bool(re.search(ans_pattern, doc['text'])):
             relevant_docs = relevant_docs + 1
 
     r_value = relevant_docs / len(docs)
