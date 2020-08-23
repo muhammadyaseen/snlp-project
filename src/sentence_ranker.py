@@ -47,8 +47,8 @@ if __name__ == '__main__':
                 question_answer[question['raw_question']] = sent
                 break
     print(f'Mean reciprocal rank = {mean(reciprocal_ranks)}')
-    print(f'Percentile ranks: 50p:{np.percentile(ranks)}, '
-          f'75p:{np.percentile(ranks)}, 90p:{np.percentile(ranks)}')
+    print(f'Percentile ranks: 50p:{np.percentile(ranks, 50)}, '
+          f'75p:{np.percentile(ranks, 75)}, 90p:{np.percentile(ranks, 90)}')
     print(question_answer)
 
     # plt.hist(ranks, bins=100)
